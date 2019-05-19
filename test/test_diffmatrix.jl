@@ -34,8 +34,8 @@
             # compute finite difference approximation along the third direction
             d1fs_FD      = similar(fs)
             d2fs_FD      = similar(fs)
-            mul!(d1fs_FD, g.D1, fs, Val(3))
-            mul!(d2fs_FD, g.D2, fs, Val(3))
+            mul!(d1fs_FD, diffmat(g, 1), fs, Val(3))
+            mul!(d2fs_FD, diffmat(g, 2), fs, Val(3))
 
             # the relative error should scale like M^{-o} where o = width-1
             v1 = maximum(abs.(d1fs_EX - d1fs_FD))/maximum(abs.(d1fs_EX))*M^(width-1)

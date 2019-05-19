@@ -1,10 +1,10 @@
 export FDGrid,
-       gridpoints
+       gridpoints,
+       diffmat
 
 struct FDGrid{T, WIDTH}
-    xs::Vector{T}            # the location of the grid points
-    D1::DiffMatrix{T, WIDTH} # diff matrix for first derivative
-    D2::DiffMatrix{T, WIDTH} # diff matrix for second derivative
+    xs::Vector{T}                       # the location of the grid points
+    Ds::NTuple{2, DiffMatrix{T, WIDTH}} # diff matrices
     function FDGrid(M::Int,
                 width::Integer=9,
                     l::Real=-1.0,
@@ -22,7 +22,7 @@ struct FDGrid{T, WIDTH}
         xs = asin.(.-α.*cos.(π.*j./(M.-1)))./asin.(α).*(h.-l)./2 .+ (h.+l)./2
 
         # instantiate
-        new{T, width}(xs, DiffMatrix(xs, width, 1), DiffMatrix(xs, width, 2))
+        new{T, width}(xs, (DiffMatrix(xs, width, 1), DiffMatrix(xs, width, 2)))
     end
 end
 
@@ -36,6 +36,13 @@ gridpoints(g::FDGrid) = g.xs
 """
     Base.getindex(g::FDGrid, i::Integer)
 
-Returns the location of the `i`-the grid points
+Returns the location of the `i`-the grid points.
 """
 Base.getindex(g::FDGrid, i::Integer) = g.xs[i]
+
+"""
+    diffmat(g::FDGrid, i::Integer)
+
+Returns the differentiation matrix of order `i`.
+"""
+diffmat(g::FDGrid, i::Integer) = g.Ds[i]
