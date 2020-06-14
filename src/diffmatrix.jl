@@ -72,6 +72,31 @@ for WIDTH in 3:2:MAX_WIDTH
     end
 
     @eval begin
+        # demo code for one dimensional data
+        function LinearAlgebra.mul!(y::DenseArray{S, 2},
+                                    A::DiffMatrix{T, $WIDTH},
+                                    x::DenseArray{S, 2}) where {T, S}
+            # size of vector
+            N = size(y, 1)
+
+            @inbounds for j = 1:size(y, 2)
+                @simd for i = 1:N
+                    # index of the first element of the stencil
+                    left = clamp(i - $(WIDTH>>1), 1, N - $WIDTH + 1)
+
+                    # expand expressions
+                    y[i, j] = A.coeffs[1, i]*x[left, j]
+                    Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
+                        y[i, j] += A.coeffs[1 + p, i] * x[left + p, j]
+                    end
+                end
+            end
+
+            return y
+        end
+    end
+
+    @eval begin
         # differentiate x along direction 3
         function LinearAlgebra.mul!(y::DenseArray{S, 3},
                                     A::DiffMatrix{T, $WIDTH},
@@ -115,3 +140,6 @@ for WIDTH in 3:2:MAX_WIDTH
         end
     end
 end
+
+Base.:*(A::DiffMatrix{T}, x::AbstractVecOrMat{S}) where {T, S} = 
+    LinearAlgebra.mul!(similar(x), A, x)
