@@ -52,4 +52,12 @@
             @test v3 < v2_bndr_max
         end
     end
+@testset "full                                   " begin
+    for width = (3, 5, 7)
+        g = FDGrid(50, width, -1, 1, 0.5)
+        D = diffmat(g, 1)
+        Df = full(D)
+        u = rand(50)
+        @test norm(Df * u .- D * u)/50 < 1e-14
+    end
 end

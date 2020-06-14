@@ -1,6 +1,6 @@
 import LinearAlgebra
 
-export DiffMatrix
+export DiffMatrix, full
 
 # I do not think someone will ask for derivatives of order > 30, but
 # in that case, just open a pull request to increase this value
@@ -29,6 +29,21 @@ struct DiffMatrix{T<:Real, WIDTH}
 
         return new{T, width}(coeffs, zeros(T, width))
     end
+end
+
+function full(A::DiffMatrix{T, WIDTH}) where {T, WIDTH}
+    N = size(A.coeffs, 2)
+    out = zeros(T, N, N)
+    @simd for i = 1:N
+        # index of the first element of the stencil
+        left = clamp(i - (WIDTH>>1), 1, N -WIDTH + 1)
+
+        # expand expressions
+        for p = 1:WIDTH
+            out[i, left+p-1] = A.coeffs[p, i]
+        end
+    end
+    return out
 end
 
 # generate code for the allowed cases of stencil WIDTH
