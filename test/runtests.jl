@@ -46,6 +46,24 @@ end
     end
 end
 
+@testset "slicing                                " begin
+    # points
+    xs = gridpoints(10, -1, 1, 1)
+        
+    # diffmatrix
+    D = DiffMatrix(xs, 3, 1)
+    
+    # set data
+              D[1, :] .=  [1, 2, 3, 4, 0, 0, 0, 0, 0, 0]
+    @test all(D[1, :] .== [1, 2, 3, 0, 0, 0, 0, 0, 0, 0])
+
+              D[end-1, :] .=  [0, 0, 0, 0, 0, 0, 4, 5, 6, 7]
+    @test all(D[end-1, :] .== [0, 0, 0, 0, 0, 0, 0, 5, 6, 7])
+
+              D[end, :] .=  [0, 0, 0, 0, 0, 0, 1, 2, 3, 4]
+    @test all(D[end, :] .== [0, 0, 0, 0, 0, 0, 0, 2, 3, 4])
+end
+
 @testset "algebra                                " begin
     xs = gridpoints(6, -1, 1, 1)
         
@@ -57,6 +75,7 @@ end
     @test typeof(D + D)                         == DiffMatrix{Float64, 3}
     @test typeof(D + 3*D)                       == DiffMatrix{Float64, 3}
     @test typeof(D + 3*Diagonal(rand(6))*D)     == DiffMatrix{Float64, 3}
+    @test typeof(D + 2*D*(3*I))                 == DiffMatrix{Float64, 3}
     @test typeof(D + 3*im*Diagonal(rand(6))*D)  == DiffMatrix{Complex{Float64}, 3}
 
     #  different width
@@ -66,6 +85,7 @@ end
 
     @test all(FDGrids.full(DA + DB) .== FDGrids.full(DA) + FDGrids.full(DB))
     @test all(FDGrids.full(C*DA) .== C*FDGrids.full(DA))
+    @test all(FDGrids.full(DA + 2*DA*(3*I)) .== FDGrids.full(DA) + 2*FDGrids.full(DA)*(3*I))
 end
 
 @testset "matvec/matmat product                  " begin
