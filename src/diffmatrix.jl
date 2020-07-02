@@ -1,25 +1,11 @@
-import LinearAlgebra
-
-export DiffMatrix, full
-
-# I do not think someone will ask for derivatives of order > 30, but
-# in that case, just open a pull request to increase this value
-const MAX_WIDTH = 31
-
-"""
-    DiffMatrix(coeffs::A) where {T<:Real, A<:DenseArray{T, 2}}
-
-Construct a differentiation matrix object of order `order` from a set of
-arbitrarily spaced grid points `xs` using finite differences with a stencil
-of width `width`.
-"""
-struct DiffMatrix{T<:Real, WIDTH}
+struct DiffMatrix{T, WIDTH} <: AbstractMatrix{T}
     coeffs::Matrix{T} # finite difference weights
       buff::Vector{T} # small buffer for the matvec code
-    function DiffMatrix(xs::AbstractVector{T}, width::Int, order::Int) where {T}
+    function DiffMatrix(xs::AbstractVector, width::Int, order::Int, ::Type{T}=Float64) where {T}
         # checks
         3 ≤ width ≤ MAX_WIDTH || throw(ArgumentError("width must be between 3 and $MAX_WIDTH"))
         width % 2 == 1 || throw(ArgumentError("width must be odd"))
+        width ≤ length(xs) || throw(ArgumentError("width must not be greater than number of grid points "))
 
         # Compute the coefficients of the differentiation matrix. Coefficients
         # are organised in row major format, i.e, the first column contains the
@@ -27,8 +13,41 @@ struct DiffMatrix{T<:Real, WIDTH}
         # the first grid point.
         coeffs = get_coeffs(xs, width, order)
 
-        return new{T, width}(coeffs, zeros(T, width))
+        return new{T, width}(T.(coeffs), zeros(T, width))
     end
+end
+
+Base.size(d::DiffMatrix) = (size(d.coeffs, 2), size(d.coeffs, 2))
+Base.IndexStyle(d::DiffMatrix) = IndexCartesian()
+
+function Base.getindex(d::DiffMatrix{T, WIDTH}, i::Int, j::Int) where {T, WIDTH}
+    # global to local indices mapping
+    offset = i ≤              WIDTH >> 1 ?          WIDTH>>1 - i + 1 :
+             i > size(d, 1) - WIDTH >> 1 ? size(d, 1) - WIDTH>>1 - i : 0
+    m, n = WIDTH>>1 + j - i + 1 - offset, i
+    
+    # return
+    return checkbounds(Bool, d.coeffs, m, n) ? d.coeffs[m, n] : zero(T)
+end
+
+function Base.setindex!(d::DiffMatrix{T, WIDTH}, v, i::Int, j::Int) where {T, WIDTH}
+    # global to local indices mapping
+    offset = i ≤              WIDTH >> 1 ?          WIDTH>>1 - i + 1 :
+             i > size(d, 1) - WIDTH >> 1 ? size(d, 1) - WIDTH>>1 - i : 0
+    m, n = WIDTH>>1 + j - i + 1 - offset, i
+    
+    # return
+    return checkbounds(Bool, d.coeffs, m, n) ? (d.coeffs[m, n] = T(v)) : T(v)
+end
+
+function Base.similar(d::DiffMatrix{T, WIDTH}, ::Type{S}=T, _size::Tuple{Vararg{Int64,2}}=size(d)) where {T, S, WIDTH}
+    return DiffMatrix(zeros(Float64, _size[1]), WIDTH, 1, S)
+end
+
+function Base.copy(d::DiffMatrix{T, WIDTH}) where {T, WIDTH}
+    d_ = similar(d)
+    d_.coeffs .= d.coeffs
+    return d_
 end
 
 function full(A::DiffMatrix{T, WIDTH}) where {T, WIDTH}
@@ -46,100 +65,27 @@ function full(A::DiffMatrix{T, WIDTH}) where {T, WIDTH}
     return out
 end
 
-# generate code for the allowed cases of stencil WIDTH
-for WIDTH in 3:2:MAX_WIDTH
-    @eval begin
-        # demo code for one dimensional data
-        function LinearAlgebra.mul!(y::DenseArray{S, 1},
-                                    A::DiffMatrix{T, $WIDTH},
-                                    x::DenseArray{S, 1}) where {T, S}
-            # size of vector
-            N = length(y)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# broadcasting style
+struct DiffMatrixStyle{T, WIDTH} <: Broadcast.BroadcastStyle end
+Base.BroadcastStyle(::Type{<:DiffMatrix{T, WIDTH}}) where {T, WIDTH} = DiffMatrixStyle{T, WIDTH}()
 
-            @inbounds @simd for i = 1:N
-                # index of the first element of the stencil
-                left = clamp(i - $(WIDTH>>1), 1, N - $WIDTH + 1)
+# allows broadcasting with numbers
+Base.BroadcastStyle( ::Base.Broadcast.DefaultArrayStyle{0}, 
+                    s::DiffMatrixStyle{T, WIDTH}) where {T, WIDTH} = s
 
-                # expand expressions
-                y[i] = A.coeffs[1, i]*x[left]
-                Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
-                    y[i] += A.coeffs[1 + p, i] * x[left + p]
-                end
-            end
+# allows broadcasting with vectors
+Base.BroadcastStyle( ::Base.Broadcast.DefaultArrayStyle{1}, 
+                    s::DiffMatrixStyle{T, WIDTH}) where {T, WIDTH} = s
 
-            return y
-        end
-    end
+# allow broadcasting with diagonal matrices (but only diagonal * )
+Base.BroadcastStyle( ::LinearAlgebra.StructuredMatrixStyle{<:LinearAlgebra.Diagonal},
+                    s::DiffMatrixStyle{T, WIDTH}) where {T, WIDTH} = s
 
-    @eval begin
-        # demo code for one dimensional data
-        function LinearAlgebra.mul!(y::DenseArray{S, 2},
-                                    A::DiffMatrix{T, $WIDTH},
-                                    x::DenseArray{S, 2}) where {T, S}
-            # size of vector
-            N = size(y, 1)
+# operations with diff matrices of different width but same type
+Base.BroadcastStyle(::DiffMatrixStyle{T1, WIDTH1}, ::DiffMatrixStyle{T2, WIDTH2}) where {T1, T2, WIDTH1, WIDTH2} = 
+    DiffMatrixStyle{promote_type(T1, T2), max(WIDTH1, WIDTH2)}()
 
-            @inbounds for j = 1:size(y, 2)
-                @simd for i = 1:N
-                    # index of the first element of the stencil
-                    left = clamp(i - $(WIDTH>>1), 1, N - $WIDTH + 1)
-
-                    # expand expressions
-                    y[i, j] = A.coeffs[1, i]*x[left, j]
-                    Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
-                        y[i, j] += A.coeffs[1 + p, i] * x[left + p, j]
-                    end
-                end
-            end
-
-            return y
-        end
-    end
-
-    @eval begin
-        # differentiate x along direction 3
-        function LinearAlgebra.mul!(y::DenseArray{S, 3},
-                                    A::DiffMatrix{T, $WIDTH},
-                                    x::DenseArray{S, 3}, ::Val{3}) where {T, S}
-            # check size
-            size(x, 3) == size(y, 3) == size(A.coeffs, 2) ||
-                throw(ArgumentError("inconsistent inputs size"))
-
-            # size of coeffs
-            N1, N2, N3 = size(y)
-
-            # local register
-            vals = A.buff
-
-            @inbounds for i = 1:N3
-                # store stencil weights into some local register
-                vals .= A.coeffs[:, i]
-
-                # index of the first element of the stencil
-                left = clamp(i - $(WIDTH>>1), 1, N3 - $WIDTH + 1)
-
-                # initialise
-                for k = 1:N2
-                    @simd for j = 1:N1
-                        y[j, k, i] = vals[1]*x[j, k, left]
-                    end
-                end
-
-                # this will have to call y[j, k, i] in memory multiple times
-                # but at least we do not jump along the third dimension of x
-                Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
-                    for k = 1:N2
-                        @simd for j = 1:N1
-                            y[j, k, i] += vals[p+1]*x[j, k, left + p]
-                        end
-                    end
-                end
-            end
-
-            return y
-        end
-    end
-end
-
-Base.:*(A::DiffMatrix{T}, x::AbstractVecOrMat{S}) where {T, S} = 
-    LinearAlgebra.mul!(similar(x), A, x)
+# use broadcasting
+Base.similar(bc::Base.Broadcast.Broadcasted{<:DiffMatrixStyle{T, WIDTH}}, ::Type{S}, _size) where {T, WIDTH, S} =
+    DiffMatrix(zeros(Float64, _size[1]), WIDTH, 1, S)

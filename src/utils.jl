@@ -47,7 +47,8 @@ function get_coeffs(xs::AbstractVector{<:Real}, width::Int, order::Int)
     width % 2 == 1 || throw(ArgumentError("width must be odd"))
 
     # either first or second derivative
-    order ∈ (1, 2) || throw(ArgumentError("order must be 1 and 2"))
+    width > order || throw(ArgumentError("stencil width must be 
+        larger than derivative order, got width=$width, order=$order"))
 
     # this is what these matrices look like for a stencil of width 5 on 9 grid points
     # x 2 3 4 5
@@ -74,7 +75,7 @@ function get_coeffs(xs::AbstractVector{<:Real}, width::Int, order::Int)
         right = clamp(i + width>>1, width, N)
 
         # get coefficients
-        weights = get_weights(xs[i], view(xs, left:right), 2)
+        weights = get_weights(xs[i], view(xs, left:right), order+2)
 
         # store line - note that the first column of c is the zero
         # order derivative (i.e. interpolation)
