@@ -3,7 +3,7 @@ struct DiffMatrixLU{T, WIDTH, F}
     ipiv::Vector{Int}
 end
 
-function LinearAlgebra.lu!(D::DiffMatrix{T, WIDTH}) where {T, WIDTH}
+function LinearAlgebra.lu(D::DiffMatrix{T, WIDTH}) where {T, WIDTH}
     WD = WIDTH-1
     factors, ipiv = LinearAlgebra.LAPACK.gbtrf!(WD, WD, size(D, 2), to_banded_format(D))
     return DiffMatrixLU{T, WIDTH, typeof(factors)}(factors, ipiv)

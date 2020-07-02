@@ -255,8 +255,8 @@ end
         D[end, :] .= 0; D[end, end] = 1
 
         # just factorize
-        luDfull = lu!(FDGrids.full(D))
-        luDdiff = lu!(D)
+        luDfull = lu(FDGrids.full(D))
+        luDdiff = lu(D)
 
         x = randn(length(xs))
         x_diff = ldiv!(luDdiff, copy(x))
@@ -288,7 +288,7 @@ end
             L[end, :] .= 0; L[end, end] = 1
 
             # just factorize
-            luL = lu!(L)
+            luL = lu(L)
 
             x = ones(length(xs))
             x[1]   = 2
