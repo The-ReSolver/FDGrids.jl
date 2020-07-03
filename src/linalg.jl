@@ -14,6 +14,25 @@ function LinearAlgebra.ldiv!(lu::DiffMatrixLU{T, WIDTH}, x::AbstractVector{T}) w
     return LinearAlgebra.LAPACK.gbtrs!('N', WD, WD, size(lu.factors, 2), lu.factors, lu.ipiv, x)
 end
 
+
+# for second order accurate discretizations, we migth use a tridiagonal solver
+struct TriDiagDiffMatrixLU{T, F}
+    args::F
+end
+
+function LinearAlgebra.lu(D::DiffMatrix{T, 3}) where {T}
+    N = size(D, 1)
+    du  = [D[i, i+1] for i ∈ 1:N-1] 
+    d   = [D[i, i]   for i ∈ 1:N] 
+    dl  = [D[i, i-1] for i ∈ 2:N] 
+    args = LinearAlgebra.LAPACK.gttrf!(dl, d, du)
+    return TriDiagDiffMatrixLU{T, typeof(args)}(args)
+end
+
+function LinearAlgebra.ldiv!(lu::TriDiagDiffMatrixLU{T}, x::AbstractVector{T}) where {T}
+    return LinearAlgebra.LAPACK.gttrs!('N', lu.args[1], lu.args[2], lu.args[3], lu.args[4], lu.args[5], x)
+end
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Transform to banded format suitable for the factorisation. This has 
 # more rows than it should, and can be made a bit more efficient
