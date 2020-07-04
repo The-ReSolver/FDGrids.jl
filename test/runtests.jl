@@ -2,6 +2,39 @@ using LinearAlgebra
 using FDGrids
 using Test
 
+@testset "test quadrature                        " begin
+
+    # quadrature
+    xs = range(-2, stop=2, length=121)
+    I = exp(2) - exp(-2)
+    @test abs(sum(exp.(xs) .* quadweights(xs, 1)) - I) < 1e-3
+    @test abs(sum(exp.(xs) .* quadweights(xs, 2)) - I) < 5e-8
+    @test abs(sum(exp.(xs) .* quadweights(xs, 3)) - I) < 2e-7
+    @test abs(sum(exp.(xs) .* quadweights(xs, 4)) - I) < 1e-10
+
+    # algo does not depend on points
+    xs = [-1, -0.2, 0.2, 1]
+    @test abs(sum((x->x^3).(xs) .* quadweights(xs, 3))) < 1e-5
+    xs = [-1, -0.2, 0.1, 1]
+    @test abs(sum((x->x^3).(xs) .* quadweights(xs, 3))) < 1e-5
+    xs = [-1, -0.9, 0.1, 1]
+    @test abs(sum((x->x^3).(xs) .* quadweights(xs, 3))) < 1e-5
+
+    # trapz
+    @test _quadweights([0, 1]) ≈ [1, 1]/2
+
+    # simpson
+    @test _quadweights([0, 0.5, 1]) ≈ [1, 4, 1]/6
+    
+    # generic polinomial
+    xs = [-1, -0.2, 0.2, 1]
+    @test sum((x->x^3).(xs) .* _quadweights(xs)) ≈ 0
+    @test sum((x->x^2).(xs) .* _quadweights(xs)) ≈ 2/3
+    @test sum((x->x  ).(xs) .* _quadweights(xs)) ≈ 0
+    @test sum((x->1  ).(xs) .* _quadweights(xs)) ≈ 2
+
+end
+
 @testset "test grid                              " begin
     # can't do silly things
     @test_throws ArgumentError gridpoints( 1, -1,  1, 1.0)
