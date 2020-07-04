@@ -286,6 +286,57 @@ end
     end
 end
 
+@testset "test new lufact                        " begin
+    for M in (10, 100)
+        xs = gridpoints(M, -1, 1, 1)
+        for width in (3, 5, 7, 9)
+            # diffmatrix
+            D = DiffMatrix(xs, width, 2)
+            D[1,   :] .= [1, zeros(M-1)...]
+            D[end, :] .= [zeros(M-1)..., 1];
+
+            # just factorize full matrix withouth pivoting and reconstruct
+            luDfull = lu(FDGrids.full(D), Val(false))
+            luD1 = luDfull.L + luDfull.U - Diagonal(ones(length(xs)))
+
+            # factorise diffmatrix without inverting the diagonal element
+            luD2 = lu!(D, false)
+
+            # since they are the same, the factorisation does not spoil 
+            # the structure of the differentiation matrices and we do not 
+            # require additional storage
+            @test norm(luD1 - full(luD2)) < 1e-8
+            # @printf "%04d %04d %.5e\n" M width norm(luD1 - full(luD2))/M
+        end
+    end
+end
+
+@testset "test demo linsolve                     " begin
+    for M in (100, 300)
+        xs = gridpoints(M, -1, 1, 1)
+        for width in (3, 5, 7, 9, 11, 13)
+            # diffmatrix
+            D = DiffMatrix(xs, width, 2)
+            D[1,   :] .= [1, zeros(M-1)...]
+            D[end, :] .= [zeros(M-1)..., 1];
+
+            # random right hand side
+            b = randn(M)
+
+            # factorize full matrix without pivoting
+            luDfull = lu(full(D), Val(false))
+            x_full = ldiv!(luDfull, copy(b))
+
+            # factorise and solve using optimised routines
+                         lu!(D)
+            x_banded = ldiv!(D, copy(b))
+
+            @test norm(x_full - x_banded)/M < 2e-14
+            # @printf "%04d %04d %.5e\n" M width norm(x_full - x_banded)/M
+        end
+    end
+end
+
 @testset "test BVP                               " begin
     # solve u'' + u' = 1, with u(-1) = 2, u(1) = 0
     
@@ -308,7 +359,7 @@ end
             L[end, :] .= 0; L[end, end] = 1
 
             # just factorize
-            luL = lu(L)
+            luL = lu!(L)
 
             x = ones(length(xs))
             x[1]   = 2

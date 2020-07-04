@@ -87,5 +87,7 @@ Base.BroadcastStyle(::DiffMatrixStyle{T1, WIDTH1}, ::DiffMatrixStyle{T2, WIDTH2}
     DiffMatrixStyle{promote_type(T1, T2), max(WIDTH1, WIDTH2)}()
 
 # use broadcasting
-Base.similar(bc::Base.Broadcast.Broadcasted{<:DiffMatrixStyle{T, WIDTH}}, ::Type{S}, _size) where {T, WIDTH, S} =
-    DiffMatrix(zeros(Float64, _size[1]), WIDTH, 1, S)
+function Base.similar(bc::Base.Broadcast.Broadcasted{<:DiffMatrixStyle{T, WIDTH}}, ::Type{S}) where {T, WIDTH, S}
+    s = axes(bc)[1][end]
+    DiffMatrix(zeros(Float64, s), WIDTH, 1, S)
+end
