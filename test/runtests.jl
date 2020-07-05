@@ -134,7 +134,7 @@ end
     end
 end
 
-@testset "test diffmatrix at point   " begin
+@testset "test diffmatrix at point               " begin
     # number of points
     for M in (10, 20, 30)
         for width in (3, 5, 7)
