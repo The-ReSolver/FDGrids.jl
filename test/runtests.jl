@@ -134,6 +134,26 @@ end
     end
 end
 
+@testset "test diffmatrix at point   " begin
+    # number of points
+    for M in (10, 20, 30)
+        for width in (3, 5, 7)
+            # get grid
+            xs = gridpoints(M, -1, 1, 0.5)
+
+            # make grid from -1 to 1 using α = 0.5
+            D = DiffMatrix(xs, width, 1)
+
+            # arrange to 3D array
+            fs = exp.(1.0.*xs)
+
+            for i = 1:M
+                @test mul!(similar(fs), D, fs)[i] == mul!(D, fs, i)
+            end
+        end
+    end
+end
+
 @testset "test diffmatrix 1st/2nd order - vec    " begin
     # the order of accuracy is the width minus one
     for (width, v1_max, v2_center_max, v2_bndr_max) in zip((3,    5,     7), 

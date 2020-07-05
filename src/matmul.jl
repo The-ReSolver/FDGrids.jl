@@ -31,6 +31,28 @@ for WIDTH in 3:2:MAX_WIDTH
     end
 
     @eval begin
+        # Find derivative of `x` at point `i` 
+        function LinearAlgebra.mul!(A::DiffMatrix{T, $WIDTH}, x::AbstractVector, i::Int) where {T}
+            # size of vector
+            N = length(x)
+
+            # check size
+            size(A, 2) == N || throw(DimensionMismatch())
+
+            # index of the first element of the stencil
+            left = clamp(i - $WIDTH>>1, 1, N - $WIDTH + 1)
+
+            # expand expressions
+            val = A.coeffs[1, i]*x[left]
+            Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
+                val += A.coeffs[1 + p, i] * x[left + p]
+            end
+            
+            return val
+        end
+    end
+
+    @eval begin
         function LinearAlgebra.mul!(y::DenseArray{S, 2},
                                     A::DiffMatrix{T, $WIDTH},
                                     x::DenseArray{S, 2}) where {T, S}
