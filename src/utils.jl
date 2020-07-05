@@ -84,3 +84,6 @@ function get_coeffs(xs::AbstractVector{<:Real}, width::Int, order::Int)
 
     return coeffs
 end
+
+# Return the `i` canonical basis vector of R^p of type `T`
+basis_vector(i, P, ::Type{T}=Float64) where {T} = (out = zeros(T, P); out[i] = 1; out)

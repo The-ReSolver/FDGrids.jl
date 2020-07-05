@@ -10,6 +10,12 @@ include("grids.jl")
 include("quadrature.jl")
 
 
-export DiffMatrix, gridpoints, full, banded_lu!, banded_tril_solve!, banded_triu_solve!, banded_solve!
+export DiffMatrix,
+       gridpoints,
+       full,
+       banded_lu!,
+       banded_tril_solve!,
+       banded_triu_solve,
+       basis_vector
 
 end
