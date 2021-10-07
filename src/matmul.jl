@@ -15,17 +15,38 @@ for WIDTH in 3:2:MAX_WIDTH
             length(y) == length(x) == size(A, 2) ||
                 throw(DimensionMismatch())
 
-            @inbounds @simd for i = 1:N
-                # index of the first element of the stencil
-                left = clamp(i - $(WIDTH>>1), 1, N - $WIDTH + 1)
+            # top
+            @inbounds begin
+                @simd for i = 1:$(WIDTH>>1)
+                    s = A.coeffs[1, i]*x[1]
+                    Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
+                        s += A.coeffs[1 + p, i] * x[1 + p]
+                    end
+                    y[i] = s
+                end
 
-                # expand expressions
-                y[i] = A.coeffs[1, i]*x[left]
-                Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
-                    y[i] += A.coeffs[1 + p, i] * x[left + p]
+                # body
+                @simd for i = 1+$(WIDTH>>1):N-$(WIDTH>>1)
+                    # index of the first element of the stencil
+                    left = i - $(WIDTH>>1)
+
+                    # expand expressions
+                    s = A.coeffs[1, i]*x[left]
+                    Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
+                        s += A.coeffs[1 + p, i] * x[left + p]
+                    end
+                    y[i] = s
+                end
+
+                # tail
+                @simd for i = N-$(WIDTH>>1)+1:N
+                    s = A.coeffs[1, i]*x[(N - $WIDTH + 1)]
+                    Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
+                        s += A.coeffs[1 + p, i] * x[(N - $WIDTH + 1) + p]
+                    end
+                    y[i] = s
                 end
             end
-
             return y
         end
     end

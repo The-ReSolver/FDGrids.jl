@@ -3,14 +3,15 @@ using BenchmarkTools
 using LinearAlgebra
 using FDGrids
 
-width = 5
+width = 3
 P = 121
 D = DiffMatrix(gridpoints(P, -1, 1), width, 1)
     
 x = rand(P)
 y = rand(P)
-# @btime mul!($y, $D, $x)
-println(@which mul!(y, D, x))
+
+@btime mul!($y, $D, $x)
+
 
 # @test norm(Df * u .- D * u)/50 < 1e-14
 
