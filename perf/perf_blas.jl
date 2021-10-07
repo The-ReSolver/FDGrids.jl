@@ -3,12 +3,17 @@ using BenchmarkTools
 using LinearAlgebra
 using FDGrids
 
-width = 3
+width = 7
 P = 121
 D = DiffMatrix(gridpoints(P, -1, 1), width, 1)
-    
+
 x = rand(P)
 y = rand(P)
+
+@btime mul!($y, $D, $x)
+
+x = rand(P, 20, 20)
+y = rand(P, 20, 20)
 
 @btime mul!($y, $D, $x)
 
