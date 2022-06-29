@@ -1,7 +1,7 @@
-struct DiffMatrix{T, WIDTH} <: AbstractMatrix{T}
+struct DiffMatrix{T, WIDTH, OPTIMISE} <: AbstractMatrix{T}
     coeffs::Matrix{T} # finite difference weights
       buff::Vector{T} # small buffer for the matvec code
-    function DiffMatrix(xs::AbstractVector, width::Int, order::Int, ::Type{T}=Float64) where {T}
+    function DiffMatrix(xs::AbstractVector, width::Int, order::Int, optimise::Bool=true, ::Type{T}=Float64) where {T}
         # checks
         3 ≤ width ≤ MAX_WIDTH || throw(ArgumentError("width must be between 3 and $MAX_WIDTH"))
         width % 2 == 1 || throw(ArgumentError("width must be odd"))
@@ -13,7 +13,7 @@ struct DiffMatrix{T, WIDTH} <: AbstractMatrix{T}
         # the first grid point.
         coeffs = get_coeffs(xs, width, order)
 
-        return new{T, width}(T.(coeffs), zeros(T, width))
+        return new{T, width, optimise}(T.(coeffs), zeros(T, width))
     end
 end
 
@@ -40,8 +40,8 @@ function Base.setindex!(d::DiffMatrix{T, WIDTH}, v, i::Int, j::Int) where {T, WI
     return checkbounds(Bool, d.coeffs, m, n) ? (d.coeffs[m, n] = T(v)) : T(v)
 end
 
-function Base.similar(d::DiffMatrix{T, WIDTH}, ::Type{S}=T, _size::Tuple{Vararg{Int64,2}}=size(d)) where {T, S, WIDTH}
-    return DiffMatrix(zeros(Float64, _size[1]), WIDTH, 1, S)
+function Base.similar(d::DiffMatrix{T, WIDTH, OPTIMISE}, ::Type{S}=T, _size::Tuple{Vararg{Int64,2}}=size(d)) where {T, S, WIDTH, OPTIMISE}
+    return DiffMatrix(zeros(Float64, _size[1]), WIDTH, 1, OPTIMISE, S)
 end
 
 function Base.copy(d::DiffMatrix{T, WIDTH}) where {T, WIDTH}
@@ -67,27 +67,27 @@ end
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # broadcasting style
-struct DiffMatrixStyle{T, WIDTH} <: Broadcast.BroadcastStyle end
-Base.BroadcastStyle(::Type{<:DiffMatrix{T, WIDTH}}) where {T, WIDTH} = DiffMatrixStyle{T, WIDTH}()
+struct DiffMatrixStyle{T, WIDTH, OPTIMISE} <: Broadcast.BroadcastStyle end
+Base.BroadcastStyle(::Type{<:DiffMatrix{T, WIDTH, OPTIMISE}}) where {T, WIDTH, OPTIMISE} = DiffMatrixStyle{T, WIDTH, OPTIMISE}()
 
 # allows broadcasting with numbers
 Base.BroadcastStyle( ::Base.Broadcast.DefaultArrayStyle{0}, 
-                    s::DiffMatrixStyle{T, WIDTH}) where {T, WIDTH} = s
+                    s::DiffMatrixStyle{T, WIDTH, OPTIMISE}) where {T, WIDTH, OPTIMISE} = s
 
 # allows broadcasting with vectors
 Base.BroadcastStyle( ::Base.Broadcast.DefaultArrayStyle{1}, 
-                    s::DiffMatrixStyle{T, WIDTH}) where {T, WIDTH} = s
+                    s::DiffMatrixStyle{T, WIDTH, OPTIMISE}) where {T, WIDTH, OPTIMISE} = s
 
 # allow broadcasting with diagonal matrices (but only diagonal * )
 Base.BroadcastStyle( ::LinearAlgebra.StructuredMatrixStyle{<:LinearAlgebra.Diagonal},
-                    s::DiffMatrixStyle{T, WIDTH}) where {T, WIDTH} = s
+                    s::DiffMatrixStyle{T, WIDTH, OPTIMISE}) where {T, WIDTH, OPTIMISE} = s
 
 # operations with diff matrices of different width but same type
-Base.BroadcastStyle(::DiffMatrixStyle{T1, WIDTH1}, ::DiffMatrixStyle{T2, WIDTH2}) where {T1, T2, WIDTH1, WIDTH2} = 
-    DiffMatrixStyle{promote_type(T1, T2), max(WIDTH1, WIDTH2)}()
+Base.BroadcastStyle(::DiffMatrixStyle{T1, WIDTH1, OPTIMISE}, ::DiffMatrixStyle{T2, WIDTH2, OPTIMISE}) where {T1, T2, WIDTH1, WIDTH2, OPTIMISE} = 
+    DiffMatrixStyle{promote_type(T1, T2), max(WIDTH1, WIDTH2), OPTIMISE}()
 
 # use broadcasting
-function Base.similar(bc::Base.Broadcast.Broadcasted{<:DiffMatrixStyle{T, WIDTH}}, ::Type{S}) where {T, WIDTH, S}
+function Base.similar(bc::Base.Broadcast.Broadcasted{<:DiffMatrixStyle{T, WIDTH, OPTIMISE}}, ::Type{S}) where {T, WIDTH, OPTIMISE, S}
     s = axes(bc)[1][end]
-    DiffMatrix(zeros(Float64, s), WIDTH, 1, S)
+    DiffMatrix(zeros(Float64, s), WIDTH, 1, OPTIMISE, S)
 end

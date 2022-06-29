@@ -103,8 +103,8 @@ LinearAlgebra.ldiv!(A::AbstractMatrix, b::AbstractVector, p::Int, q::Int) =
 # optimise is true, the diagonal of the factor U is inverted to save one division per 
 # loop iteration. For DiffMatrices with small width, this can lead to substantial savings.
 # This function operates in place, overwriting A.
-LinearAlgebra.lu!(A::DiffMatrix{T, WIDTH}, optimise::Bool=true) where {T, WIDTH} =
-    _banded_lu!(A, WIDTH-1, WIDTH-1, optimise)
+LinearAlgebra.lu!(A::DiffMatrix{T, WIDTH, OPTIMISE}) where {T, WIDTH, OPTIMISE} =
+    _banded_lu!(A, WIDTH-1, WIDTH-1, OPTIMISE)
 
 LinearAlgebra.ldiv!(A::DiffMatrix{T, WIDTH}, b::AbstractVector) where {T, WIDTH} = 
     _banded_triu_solve!(A, _banded_tril_solve!(A, b))
@@ -134,27 +134,29 @@ LinearAlgebra.ldiv!(A::DiffMatrix{T, WIDTH}, b::AbstractVector) where {T, WIDTH}
     end
 end
 
-@generated function _banded_triu_solve!(L::DiffMatrix{T, WIDTH}, b::AbstractVector) where {T, WIDTH}
+# Assumes the diagonal of the upper-diagonal matrix is pr`e
+@generated function _banded_triu_solve!(U::DiffMatrix{T, WIDTH, OPTIMISE}, b::AbstractVector) where {T, WIDTH, OPTIMISE}
     WD = WIDTH>>1
+    op = OPTIMISE == true ? Base.:* : Base.:/
     quote
-    n = size(L, 1)
+    n = size(U, 1)
     @inbounds begin
         for j = n:-1:(n-$WD+1)
-            b[j] *= L[j, j]
+            b[j] *= U[j, j]
             for i = max(1, j-$WIDTH - 1):j-1
-                b[i] = b[i] - L[i, j]*b[j]
+                b[i] = b[i] - U[i, j]*b[j]
             end
         end
         for j = (n-$WD):-1:($WIDTH+1)
-            b[j] *= L.coeffs[$WD+1, j] 
+            b[j] *= U.coeffs[$WD+1, j] 
             Base.Cartesian.@nexprs $WD i_ -> begin
-                b[j-i_] = muladd(L.coeffs[$WD + 1 + i_, j - i_], -b[j], b[j-i_])
+                b[j-i_] = muladd(U.coeffs[$WD + 1 + i_, j - i_], -b[j], b[j-i_])
             end
         end
         for j = $WIDTH:-1:1
-            b[j] *= L[j, j]
+            b[j] = $op(b[j], U[j, j])
             for i = max(1, j-$WIDTH - 1):j-1
-                b[i] = b[i] - L[i, j]*b[j]
+                b[i] = b[i] - U[i, j]*b[j]
             end
         end
     end
