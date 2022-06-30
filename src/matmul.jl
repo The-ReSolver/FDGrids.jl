@@ -89,7 +89,7 @@ for WIDTH in 3:2:MAX_WIDTH
                 for i = 1:$(WIDTH>>1)
                     s = A.coeffs[1, i]*x[1, j, k]
                     Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
-                        s += A.coeffs[1 + p, i] * x[1 + p, j, k]
+                        muladd(A.coeffs[1 + p, i], x[1 + p, j, k], s)
                     end
                     y[i, j, k] = s
                 end
@@ -102,7 +102,7 @@ for WIDTH in 3:2:MAX_WIDTH
                     # expand expressions
                     s = A.coeffs[1, i]*x[left, j, k]
                     Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
-                        s += A.coeffs[1 + p, i] * x[left + p, j, k]
+                        muladd(A.coeffs[1 + p, i], x[left + p, j, k], s)
                     end
                     y[i, j, k] = s
                 end
@@ -111,7 +111,7 @@ for WIDTH in 3:2:MAX_WIDTH
                 for i = N1-$(WIDTH>>1)+1:N1
                     s = A.coeffs[1, i]*x[(N1 - $WIDTH + 1), j, k]
                     Base.Cartesian.@nexprs $(WIDTH-1) p -> begin
-                        s += A.coeffs[1 + p, i] * x[(N1 - $WIDTH + 1) + p, j, k]
+                        muladd(A.coeffs[1 + p, i], x[(N1 - $WIDTH + 1) + p, j, k], s)
                     end
                     y[i, j, k] = s
                 end
