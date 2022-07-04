@@ -5,9 +5,9 @@ const MAX_WIDTH = 31
 # generate code for the allowed cases of stencil WIDTH
 for WIDTH in 3:2:MAX_WIDTH
     @eval begin
-        function LinearAlgebra.mul!(y::DenseArray{S, 1},
+        function LinearAlgebra.mul!(y::AbstractArray{S, 1},
                                     A::DiffMatrix{T, $WIDTH},
-                                    x::DenseArray{S, 1}) where {T, S}
+                                    x::AbstractArray{S, 1}) where {T, S}
             # size of vector
             N = length(y)
 
@@ -75,9 +75,9 @@ for WIDTH in 3:2:MAX_WIDTH
 
     @eval begin
         # differentiate x along direction 1
-        function LinearAlgebra.mul!(y::DenseArray{S, 3},
+        function LinearAlgebra.mul!(y::AbstractArray{S, 3},
                                     A::DiffMatrix{T, $WIDTH},
-                                    x::DenseArray{S, 3}) where {T, S}
+                                    x::AbstractArray{S, 3}) where {T, S}
             # check size
             size(x, 1) == size(y, 1) == size(A.coeffs, 2) ||
                 throw(ArgumentError("inconsistent inputs size"))
