@@ -4,7 +4,8 @@ export quadweights, _quadweights
 # composite rule using polynomials of order `order`.
 function quadweights(xs::AbstractVector, order::Int)
     # check data is increasing
-    issorted(xs) || throw(ArgumentError("input not sorted"))
+    # issorted(xs) || throw(ArgumentError("input not sorted"))
+    issorted(xs) || reverse!(xs)
 
     # number of points
     N = length(xs)
@@ -22,6 +23,9 @@ function quadweights(xs::AbstractVector, order::Int)
         w[rng] += _quadweights(xs[rng])
         ii = ie
     end
+
+    # return to original order if originally reversed
+    issorted(xs) || (reverse!(xs); reverse!(w))
 
     return w
 end

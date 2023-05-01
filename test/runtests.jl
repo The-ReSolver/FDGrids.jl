@@ -11,6 +11,7 @@ using Test
     @test abs(sum(exp.(xs) .* quadweights(xs, 2)) - I) < 5e-8
     @test abs(sum(exp.(xs) .* quadweights(xs, 3)) - I) < 2e-7
     @test abs(sum(exp.(xs) .* quadweights(xs, 4)) - I) < 1e-10
+    @test abs(sum(exp.(reverse(collect(xs))) .* quadweights(reverse(collect(xs)), 4)) - I) < 1e-10
 
     # algo does not depend on points
     xs = [-1, -0.2, 0.2, 1]
