@@ -5,13 +5,13 @@ export quadweights, _quadweights
 function quadweights(xs::AbstractVector, order::Int)
     # check data is increasing
     # issorted(xs) || throw(ArgumentError("input not sorted"))
-    issorted(xs) || reverse!(xs)
+    issorted(xs) ? (xs_sorted = xs) : (xs_sorted = reverse(xs))
 
     # number of points
-    N = length(xs)
+    N = length(xs_sorted)
 
     # partition xs so that we have at at least order+1 points
-    w = zeros(length(xs))
+    w = zeros(length(xs_sorted))
 
     # ii and ie and the initial and final indices 
     ii, ie = 1, 1
@@ -20,12 +20,12 @@ function quadweights(xs::AbstractVector, order::Int)
         # if the next interval is smaller, just go till the end
         ie = N - ie < order ? N : ie
         rng = ii:ie
-        w[rng] += _quadweights(xs[rng])
+        w[rng] += _quadweights(xs_sorted[rng])
         ii = ie
     end
 
     # return to original order if originally reversed
-    issorted(xs) || (reverse!(xs); reverse!(w))
+    issorted(xs) ? nothing : reverse!(w)
 
     return w
 end
